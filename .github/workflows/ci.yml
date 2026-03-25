@@ -32,9 +32,17 @@ jobs:
           name: test-output-node-${{ matrix.node-version }}
           path: app/test-output.txt
 
-  # Stage 2 : Build image Docker
+  # Stage 2 : Build image Docker (reusable workflow)
   build:
     needs: test
+    uses: ./.github/workflows/reusable-docker.yml
+    with:
+      image-name: devops-app
+      context: ./app
+
+  # Stage 2b : Smoke test
+  smoke-test:
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -44,12 +52,11 @@ jobs:
           context: ./app
           load: true
           push: false
-          tags: devops-app:${{ github.sha }}
+          tags: devops-app:smoke
           cache-from: type=gha
-          cache-to: type=gha,mode=max
       - name: Smoke test
         run: |
-          docker run -d -p 3000:3000 --name smoke devops-app:${{ github.sha }}
+          docker run -d -p 3000:3000 --name smoke devops-app:smoke
           sleep 2
           curl -f http://localhost:3000/health
           curl -f http://localhost:3000/metrics
@@ -57,7 +64,7 @@ jobs:
 
   # Stage 3 : Scan de sécurité
   security:
-    needs: build
+    needs: smoke-test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -70,11 +77,19 @@ jobs:
           exit-code: "1"
           format: "table"
 
-  # Stage 4 : Deploy (simulé)
-  deploy:
-    needs: [build, security]
+  # Stage 4 : Deploy staging (auto)
+  deploy-staging:
+    needs: [smoke-test, security]
     if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - run: echo "Deploying to staging..."
+
+  # Stage 5 : Deploy production (reviewer requis + wait timer)
+  deploy-production:
+    needs: deploy-staging
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - run: echo "Deploying version ${{ github.sha }}..."
+      - run: echo "Deploying to production version ${{ github.sha }}..."
