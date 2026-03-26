@@ -1,6 +1,7 @@
 # DevSecOps — Scan & Conformité
 
 ## Objectif
+
 Intégrer la sécurité dans le pipeline CI/CD : scanner les images Docker, les dépendances, les fichiers IaC et appliquer des politiques de conformité.
 
 ## Consignes
@@ -51,50 +52,50 @@ trivy repo .
 Ajouter à `.github/workflows/ci.yml` :
 
 ```yaml
-  security-scan:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+security-scan:
+  needs: build
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
 
-      # Scanner les dépendances
-      - name: Scan dependencies
-        uses: aquasecurity/trivy-action@0.33.1
-        with:
-          scan-type: 'fs'
-          scan-ref: 'app/'
-          severity: 'HIGH,CRITICAL'
-          exit-code: '1'
-          format: 'table'
+    # Scanner les dépendances
+    - name: Scan dependencies
+      uses: aquasecurity/trivy-action@0.33.1
+      with:
+        scan-type: "fs"
+        scan-ref: "app/"
+        severity: "HIGH,CRITICAL"
+        exit-code: "1"
+        format: "table"
 
-      # Scanner l'image Docker
-      - name: Build image for scanning
-        run: docker build -t devops-app:scan app/
+    # Scanner l'image Docker
+    - name: Build image for scanning
+      run: docker build -t devops-app:scan app/
 
-      - name: Scan Docker image
-        uses: aquasecurity/trivy-action@0.33.1
-        with:
-          image-ref: 'devops-app:scan'
-          severity: 'HIGH,CRITICAL'
-          exit-code: '1'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
+    - name: Scan Docker image
+      uses: aquasecurity/trivy-action@0.33.1
+      with:
+        image-ref: "devops-app:scan"
+        severity: "HIGH,CRITICAL"
+        exit-code: "1"
+        format: "sarif"
+        output: "trivy-results.sarif"
 
-      # Upload SARIF pour GitHub Security tab
-      - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: 'trivy-results.sarif'
+    # Upload SARIF pour GitHub Security tab
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: "trivy-results.sarif"
 
-      # Scanner IaC (Terraform)
-      - name: Scan IaC
-        uses: aquasecurity/trivy-action@0.33.1
-        with:
-          scan-type: 'config'
-          scan-ref: 'infra/'
-          severity: 'HIGH,CRITICAL'
-          exit-code: '0'  # Warning only pour IaC
+    # Scanner IaC (Terraform)
+    - name: Scan IaC
+      uses: aquasecurity/trivy-action@0.33.1
+      with:
+        scan-type: "config"
+        scan-ref: "infra/"
+        severity: "HIGH,CRITICAL"
+        exit-code: "0" # Warning only pour IaC
 ```
 
 > Même en formation, évitez `@master`. En production, pinnez les actions tierces à un **SHA complet**.
@@ -113,11 +114,12 @@ gitleaks protect --source . --verbose
 ```
 
 Ajouter au pipeline :
+
 ```yaml
-      - name: Scan for secrets
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+- name: Scan for secrets
+  uses: gitleaks/gitleaks-action@v2
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ### 5. Politiques OPA (Open Policy Agent)
@@ -209,6 +211,7 @@ Créer `SECURITY-CHECKLIST.md` dans votre repo :
 # Checklist Sécurité DevOps
 
 ## Images Docker
+
 - [ ] Base image minimale (alpine)
 - [ ] Pas de tag :latest
 - [ ] User non-root
@@ -217,6 +220,7 @@ Créer `SECURITY-CHECKLIST.md` dans votre repo :
 - [ ] .dockerignore complet
 
 ## Kubernetes
+
 - [ ] Resource limits sur chaque conteneur
 - [ ] Pas de conteneur privilégié
 - [ ] NetworkPolicies en place
@@ -224,6 +228,7 @@ Créer `SECURITY-CHECKLIST.md` dans votre repo :
 - [ ] RBAC configuré
 
 ## Pipeline
+
 - [ ] Secrets dans GitHub Secrets (pas dans le code)
 - [ ] Scan de dépendances automatique
 - [ ] Scan d'image automatique
@@ -231,12 +236,14 @@ Créer `SECURITY-CHECKLIST.md` dans votre repo :
 - [ ] Environnements avec protection
 
 ## Infrastructure
+
 - [ ] State Terraform chiffré
 - [ ] Pas de credentials en dur dans les fichiers IaC
 - [ ] Principe du moindre privilège (IAM)
 ```
 
 ## Livrable
+
 - Pipeline avec scan Trivy intégré (images + dépendances + IaC)
 - Détection de secrets avec gitleaks
 - Au moins 2 politiques OPA écrites
@@ -245,7 +252,9 @@ Créer `SECURITY-CHECKLIST.md` dans votre repo :
 ## Aide
 
 ### Ignorer des vulnérabilités connues
+
 Créer `.trivyignore` :
+
 ```
 # CVE acceptée car pas exploitable dans notre contexte
 CVE-2023-XXXXX
@@ -255,6 +264,7 @@ CVE-2024-YYYYY
 ```
 
 ### Fixer les vulnérabilités courantes
+
 ```bash
 # Mettre à jour les dépendances
 cd app && npm audit fix
